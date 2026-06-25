@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HydroChem</title>
+
+<!-- PWA Meta Tags -->
+<meta name="application-name" content="HydroChem">
+<meta name="description" content="Professional pool chemical calculator — personalised dosing guidance for your pool.">
+<meta name="theme-color" content="#1a5f8a">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS specific -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HydroChem">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- iOS Touch Icons (inline SVG converted to data URI for self-contained file) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%231a5f8a'/%3E%3Cg stroke='%23cce4f5' stroke-width='3.5' fill='none' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M60 38 L60 72 L36 110 Q32 118 40 120 L106 120 Q114 118 110 110 L86 72 L86 38 Z'/%3E%3Cline x1='56' y1='72' x2='90' y2='72'/%3E%3Cline x1='56' y1='38' x2='90' y2='38'/%3E%3Ccircle cx='55' cy='94' r='5' fill='%238ec8e8' stroke='none'/%3E%3Ccircle cx='70' cy='103' r='7' fill='%238ec8e8' stroke='none' opacity='.8'/%3E%3Ccircle cx='85' cy='90' r='4' fill='%238ec8e8' stroke='none' opacity='.7'/%3E%3Ccircle cx='52' cy='25' r='4' fill='none' stroke='%238ec8e8' stroke-width='3'/%3E%3Ccircle cx='64' cy='15' r='5' fill='none' stroke='%238ec8e8' stroke-width='3'/%3E%3C/g%3E%3Cg transform='translate(108 108)' stroke='%23cce4f5' stroke-width='3' fill='none'%3E%3Ccircle cx='0' cy='0' r='24' stroke='%236aaace' stroke-width='4'/%3E%3Crect x='-4' y='-30' width='8' height='10' rx='2' fill='%23cce4f5' stroke='none'/%3E%3Crect x='-4' y='20' width='8' height='10' rx='2' fill='%23cce4f5' stroke='none'/%3E%3Crect x='-30' y='-4' width='10' height='8' rx='2' fill='%23cce4f5' stroke='none'/%3E%3Crect x='20' y='-4' width='10' height='8' rx='2' fill='%23cce4f5' stroke='none'/%3E%3Cpath d='M0-14 Q10 0 0 14 Q-10 0 0-14 Z' fill='none' stroke='%238ec8e8' stroke-width='3'/%3E%3C/g%3E%3C/svg%3E">
+
+<!-- Inline Service Worker registration -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      // Inline service worker as a blob so the app is fully self-contained
+      const swCode = `
+        const CACHE = 'hydrochem-v1';
+        self.addEventListener('install', e => {
+          e.waitUntil(
+            caches.open(CACHE).then(c => c.addAll([location.pathname || '/']))
+          );
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', e => {
+          e.waitUntil(caches.keys().then(keys =>
+            Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+          ));
+          self.clients.claim();
+        });
+        self.addEventListener('fetch', e => {
+          e.respondWith(
+            caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match(e.request)))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      const url  = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(url).catch(() => {});
+    });
+  }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f7fc; color: #1a2a3a; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+
+  /* iOS install banner */
+  #install-banner { display: none; background: #1a5f8a; color: #fff; padding: 10px 16px 10px calc(16px + env(safe-area-inset-left)); font-size: 13px; align-items: center; gap: 10px; }
+  #install-banner.visible { display: flex; }
+  #install-banner span { flex: 1; }
+  #install-banner button { background: #fff; color: #1a5f8a; border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  #install-banner .close-btn { background: none; color: rgba(255,255,255,0.7); padding: 4px 8px; font-size: 16px; }
+
+  header { background: #fff; border-bottom: 1px solid #d0e4f0; padding: 14px 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 8px rgba(0,80,140,0.07); }
+  .header-tagline { font-size: 12px; color: #5a8aaa; margin-top: 1px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .hero { background: linear-gradient(135deg, #2980b9 0%, #1a5f8a 100%); color: #fff; text-align: center; padding: 28px 24px 24px; }
+  .hero h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .hero p  { font-size: 14px; opacity: 0.88; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  .card { background: #fff; border-radius: 14px; border: 1px solid #d8eaf5; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,80,140,0.06); }
+
+  .card-title { font-size: 13px; font-weight: 600; color: #2980b9; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  .card-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: #2980b9; border-radius: 2px; }
+
+  .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: #5a7a8a; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .field input, .field select { width: 100%; padding: 9px 12px; border: 1.5px solid #c8dce8; border-radius: 8px; font-size: 15px; color: #1a2a3a; background: #f7fbfe; transition: border-color 0.15s; outline: none; -webkit-appearance: none; appearance: none; }
+  .field input:focus, .field select:focus { border-color: #2980b9; background: #fff; }
+  .field input::placeholder { color: #aabccc; }
+  .field .hint { font-size: 11px; color: #8aaabb; margin-top: 4px; line-height: 1.4; }
+
+  .tag-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .tag { padding: 6px 14px; border-radius: 20px; border: 1.5px solid #c8dce8; background: #f7fbfe; font-size: 13px; cursor: pointer; transition: all 0.15s; color: #1a2a3a; user-select: none; }
+  .tag:hover { border-color: #2980b9; color: #2980b9; }
+  .tag.selected { background: #2980b9; color: #fff; border-color: #2980b9; }
+
+  .vol-badge { display: inline-flex; align-items: baseline; gap: 8px; background: #eaf4fb; border: 1px solid #b8d8ee; border-radius: 10px; padding: 10px 18px; margin-top: 18px; }
+  .vol-number { font-size: 26px; font-weight: 700; color: #2980b9; }
+  .vol-label  { font-size: 13px; color: #5a8aaa; }
+
+  .steps-note { background: #eaf4fb; border: 1px solid #b8d8ee; border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; color: #1a5f8a; line-height: 1.5; }
+  .steps-note strong { color: #2980b9; }
+
+  .step-fields { margin-bottom: 20px; }
+  .step-label { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .step-pill { background: #2980b9; color: #fff; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 12px; letter-spacing: 0.06em; white-space: nowrap; }
+  .step-desc { font-size: 13px; color: #4a6a7a; font-style: italic; }
+
+  .divider { border: none; border-top: 1px dashed #d0e4f0; margin: 18px 0; }
+
+  .btn-calc { display: block; width: 100%; margin-top: 8px; padding: 14px; background: #2980b9; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; letter-spacing: 0.02em; transition: background 0.15s, transform 0.1s; }
+  .btn-calc:hover  { background: #1f6699; }
+  .btn-calc:active { transform: scale(0.98); }
+
+  /* Alert banner for chlorine lock */
+  .chlorine-lock-banner { background: #fff3cd; border: 2px solid #e67e22; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+  .chlorine-lock-banner h3 { color: #c0392b; font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .chlorine-lock-banner h3::before { content: '⚠'; font-size: 18px; }
+  .chlorine-lock-banner p { font-size: 13px; color: #7a3d00; line-height: 1.6; margin-bottom: 6px; }
+  .chlorine-lock-banner ul { font-size: 13px; color: #7a3d00; padding-left: 18px; line-height: 1.8; }
+
+  /* Result items */
+  .result-step-header { display: flex; align-items: center; gap: 10px; margin: 16px 0 8px; }
+  .result-step-pill { background: #2980b9; color: #fff; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 12px; letter-spacing: 0.05em; }
+  .result-step-title { font-size: 13px; font-weight: 600; color: #1a5f8a; }
+
+  .result-item { border-radius: 10px; padding: 14px 16px; border-left: 4px solid; margin-bottom: 8px; }
+  .result-item.ok      { background: #eafaf1; border-color: #27ae60; }
+  .result-item.add     { background: #fef9e7; border-color: #f39c12; }
+  .result-item.high    { background: #fdf2f0; border-color: #e74c3c; }
+  .result-item.warning { background: #fff3cd; border-color: #e67e22; }
+  .result-item.info    { background: #eaf4fb; border-color: #2980b9; }
+
+  .result-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .result-name.ok      { color: #1e8449; }
+  .result-name.add     { color: #b7770d; }
+  .result-name.high    { color: #c0392b; }
+  .result-name.warning { color: #c0612b; }
+  .result-name.info    { color: #1a5f8a; }
+
+  .result-action { font-size: 14px; color: #1a2a3a; line-height: 1.6; }
+  .result-action ul { padding-left: 18px; margin-top: 4px; }
+  .result-action li  { margin-bottom: 3px; }
+  .result-range  { font-size: 12px; color: #7a9aaa; margin-top: 5px; }
+
+  .context-badge { display: inline-block; background: #eaf4fb; border: 1px solid #b8d8ee; border-radius: 6px; padding: 2px 8px; font-size: 11px; color: #1a5f8a; margin-right: 4px; margin-bottom: 4px; }
+
+  .warning-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #7a5a00; margin-top: 14px; line-height: 1.7; }
+  .warning-box ul { padding-left: 18px; margin-top: 6px; }
+
+  .borehole-alert { background: #fdf2f0; border: 1px solid #f5b7b1; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #7a2a1a; margin-bottom: 14px; line-height: 1.6; }
+  .borehole-alert strong { color: #c0392b; }
+
+  .disclaimer { font-size: 12px; color: #7a9aaa; margin-top: 16px; padding: 12px 14px; background: #f0f7fc; border-radius: 8px; line-height: 1.6; }
+
+  footer { background: #1a5f8a; color: #cce4f5; padding: 28px 24px; text-align: center; }
+  .footer-logo { margin-bottom: 14px; }
+  .footer-logo img { height: 48px; filter: brightness(0) invert(1); opacity: 0.9; }
+  .footer-tagline { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #8ec8e8; margin-bottom: 16px; }
+  .footer-contacts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 28px; margin-bottom: 16px; }
+  .footer-contacts a { color: #cce4f5; text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 6px; transition: color 0.15s; }
+  .footer-contacts a:hover { color: #fff; }
+  .footer-contacts svg { width: 16px; height: 16px; fill: #8ec8e8; }
+  .footer-copy { font-size: 11px; color: #6aaace; margin-top: 12px; }
+  .footer-about { max-width: 680px; margin: 16px auto 0; text-align: left; }
+  .footer-about p { font-size: 13px; color: #a8d4ee; line-height: 1.7; margin-bottom: 10px; }
+  .footer-about strong { color: #cce4f5; }
+  .footer-about ul { padding-left: 20px; margin-bottom: 10px; }
+  .footer-about ul li { font-size: 13px; color: #a8d4ee; line-height: 1.8; }
+
+  @media (max-width: 500px) { .hero h1 { font-size: 18px; } .card { padding: 18px 14px; } }
+
+  /* ── PRINT STYLES ─────────────────────────────────────────────────────── */
+  @media print {
+    body { background: #fff; font-size: 12px; color: #000; }
+    #password-screen, #install-banner, header, .hero, footer,
+    .btn-calc, #print-btn, button { display: none !important; }
+    main { max-width: 100%; padding: 0; margin: 0; }
+    .card { border: 1px solid #ccc; box-shadow: none; border-radius: 6px; margin-bottom: 14px; padding: 14px; page-break-inside: avoid; }
+    /* Hide input cards — only show results card and photo */
+    .card:not(#results-card):not(#print-header-card) { display: none !important; }
+    #results-card { display: block !important; border: none; padding: 0; }
+    .result-item { page-break-inside: avoid; }
+    #print-report { display: block !important; }
+    a { color: #000; text-decoration: none; }
+  }
+
+  /* Print report layout (hidden on screen, visible when printing) */
+  #print-report {
+    display: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<!-- Password Screen -->
+<div id="password-screen" style="
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #1a5f8a 0%, #0d3a56 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+  padding-top: calc(32px + env(safe-area-inset-top));
+">
+  <!-- Logo -->
+  <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="height:72px;width:72px;margin-bottom:16px;">
+    <g stroke="#cce4f5" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M28 14 L28 34 L16 54 Q14 58 18 60 L50 60 Q54 58 52 54 L40 34 L40 14 Z"/>
+      <line x1="26" y1="34" x2="42" y2="34"/>
+      <line x1="26" y1="14" x2="42" y2="14"/>
+      <circle cx="26" cy="46" r="2.5" fill="#8ec8e8" stroke="none"/>
+      <circle cx="33" cy="50" r="3.5" fill="#8ec8e8" stroke="none" opacity="0.8"/>
+      <circle cx="40" cy="43" r="2" fill="#8ec8e8" stroke="none" opacity="0.7"/>
+      <circle cx="33" cy="9" r="2" fill="none" stroke="#8ec8e8" stroke-width="1.8"/>
+      <circle cx="38" cy="5" r="2.5" fill="none" stroke="#8ec8e8" stroke-width="1.8"/>
+    </g>
+    <g transform="translate(50, 50)" stroke="#cce4f5" stroke-width="2" fill="none">
+      <circle cx="0" cy="0" r="12" stroke="#6aaace" stroke-width="2.5"/>
+      <rect x="-2" y="-15" width="4" height="5" rx="1" fill="#cce4f5" stroke="none"/>
+      <rect x="-2" y="10" width="4" height="5" rx="1" fill="#cce4f5" stroke="none"/>
+      <rect x="-15" y="-2" width="5" height="4" rx="1" fill="#cce4f5" stroke="none"/>
+      <rect x="10" y="-2" width="5" height="4" rx="1" fill="#cce4f5" stroke="none"/>
+      <path d="M0-7 Q5 0 0 7 Q-5 0 0-7 Z" fill="none" stroke="#8ec8e8" stroke-width="1.8"/>
+    </g>
+  </svg>
+
+  <div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:-0.02em;margin-bottom:6px;">HydroChem</div>
+  <div style="font-size:13px;color:#8ec8e8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:36px;">Professional Pool Analysis</div>
+
+  <div style="width:100%;max-width:320px;">
+    <input
+      type="password"
+      id="pw-input"
+      placeholder="Enter password"
+      autocomplete="current-password"
+      style="
+        width:100%; padding:14px 16px; font-size:16px;
+        border:2px solid rgba(255,255,255,0.2); border-radius:12px;
+        background:rgba(255,255,255,0.1); color:#fff;
+        outline:none; margin-bottom:12px; text-align:center;
+        letter-spacing:0.1em;
+      "
+    >
+    <div id="pw-error" style="color:#f5a623;font-size:13px;text-align:center;margin-bottom:12px;min-height:18px;"></div>
+    <button onclick="checkPassword()" style="
+      width:100%; padding:14px; font-size:16px; font-weight:600;
+      background:#fff; color:#1a5f8a; border:none; border-radius:12px;
+      cursor:pointer; letter-spacing:0.02em;
+    ">Unlock</button>
+  </div>
+</div>
+
+<div id="install-banner">
+  <span>📲 Add HydroChem to your home screen for offline use</span>
+  <button id="install-btn">Install</button>
+  <button class="close-btn" id="banner-close">✕</button>
+</div>
+
+<header>
+  <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="height:52px;width:52px;flex-shrink:0;">
+    <g stroke="#1a5f8a" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M28 14 L28 34 L16 54 Q14 58 18 60 L50 60 Q54 58 52 54 L40 34 L40 14 Z" fill="none"/>
+      <line x1="26" y1="34" x2="42" y2="34"/>
+      <line x1="26" y1="14" x2="42" y2="14"/>
+      <circle cx="26" cy="46" r="2.5" fill="#3aa0d0" stroke="none"/>
+      <circle cx="33" cy="50" r="3.5" fill="#3aa0d0" stroke="none" opacity="0.8"/>
+      <circle cx="40" cy="43" r="2" fill="#3aa0d0" stroke="none" opacity="0.7"/>
+      <circle cx="30" cy="54" r="1.8" fill="none" stroke="#3aa0d0" stroke-width="1.5"/>
+      <circle cx="37" cy="56" r="1.3" fill="none" stroke="#3aa0d0" stroke-width="1.5"/>
+      <circle cx="33" cy="9" r="2" fill="none" stroke="#3aa0d0" stroke-width="1.8"/>
+      <circle cx="38" cy="5" r="2.5" fill="none" stroke="#3aa0d0" stroke-width="1.8"/>
+    </g>
+    <g transform="translate(50, 50)" stroke="#1a5f8a" stroke-width="2" fill="none">
+      <circle cx="0" cy="0" r="12" stroke="#b0c8d8" stroke-width="2.5"/>
+      <rect x="-2" y="-15" width="4" height="5" rx="1" fill="#1a5f8a" stroke="none"/>
+      <rect x="-2" y="10" width="4" height="5" rx="1" fill="#1a5f8a" stroke="none"/>
+      <rect x="-15" y="-2" width="5" height="4" rx="1" fill="#1a5f8a" stroke="none"/>
+      <rect x="10" y="-2" width="5" height="4" rx="1" fill="#1a5f8a" stroke="none"/>
+      <rect x="-12" y="-12" width="4" height="4" rx="1" fill="#1a5f8a" stroke="none" transform="rotate(45,-10,-10)"/>
+      <rect x="8" y="-12" width="4" height="4" rx="1" fill="#1a5f8a" stroke="none" transform="rotate(45,10,-10)"/>
+      <rect x="-12" y="8" width="4" height="4" rx="1" fill="#1a5f8a" stroke="none" transform="rotate(45,-10,10)"/>
+      <rect x="8" y="8" width="4" height="4" rx="1" fill="#1a5f8a" stroke="none" transform="rotate(45,10,10)"/>
+      <path d="M0-7 Q5 0 0 7 Q-5 0 0-7 Z" fill="none" stroke="#3aa0d0" stroke-width="1.8"/>
+    </g>
+  </svg>
+  <div>
+    <div style="font-size:20px;font-weight:700;color:#1a2a3a;letter-spacing:-0.02em;">HydroChem</div>
+    <div class="header-tagline">Professional Pool Water Analysis</div>
+  </div>
+</header>
+
+<div class="hero">
+  <h1>Pool Chemical Calculator</h1>
+  <p>Personalised dosing guidance based on your pool's unique profile.</p>
+</div>
+
+<main>
+
+  <!-- ── CLIENT INFO ───────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Client details</div>
+    <div class="field-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="field">
+        <label>Client name</label>
+        <input type="text" id="client-name" placeholder="e.g. John Smith" style="font-size:15px;">
+        <div class="hint">Appears on the printed report</div>
+      </div>
+      <div class="field">
+        <label>Report date</label>
+        <input type="date" id="report-date" style="font-size:15px;">
+      </div>
+    </div>
+
+    <!-- Pool photo upload -->
+    <div style="margin-top:16px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:#5a7a8a;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Pool photo (optional)</label>
+      <div id="photo-drop-zone" onclick="document.getElementById('pool-photo-input').click()" style="
+        border:2px dashed #b8d8ee; border-radius:10px; padding:20px; text-align:center;
+        cursor:pointer; background:#f7fbfe; transition:border-color 0.15s, background 0.15s;
+        position:relative; overflow:hidden;
+      ">
+        <div id="photo-placeholder">
+          <div style="font-size:28px;margin-bottom:6px;">📷</div>
+          <div style="font-size:13px;font-weight:600;color:#2980b9;">Tap to add a pool photo</div>
+          <div style="font-size:12px;color:#8aaabb;margin-top:3px;">JPG or PNG · will appear on the printed report</div>
+        </div>
+        <img id="pool-photo-preview" src="" alt="Pool photo" style="display:none;max-height:200px;max-width:100%;border-radius:8px;margin:0 auto;display:none;">
+        <input type="file" id="pool-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
+      </div>
+      <button id="remove-photo-btn" onclick="removePhoto()" style="display:none;margin-top:8px;background:none;border:none;color:#e74c3c;font-size:12px;cursor:pointer;font-weight:600;">✕ Remove photo</button>
+    </div>
+  </div>
+
+  <!-- ── POOL PROFILE ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Pool profile</div>
+
+    <div style="margin-bottom:20px">
+      <div class="field" style="margin-bottom:14px">
+        <label>Pool surface</label>
+        <div class="tag-group" id="surface-group">
+          <span class="tag" data-val="marblelite"      onclick="selectTag(this,'surface-group')">Marblelite</span>
+          <span class="tag selected" data-val="fibreglass"    onclick="selectTag(this,'surface-group')">Fibreglass</span>
+          <span class="tag" data-val="fibreglass_lining" onclick="selectTag(this,'surface-group')">Fibreglass Lining</span>
+          <span class="tag" data-val="epoxy"           onclick="selectTag(this,'surface-group')">Epoxy</span>
+          <span class="tag" data-val="tile"            onclick="selectTag(this,'surface-group')">Tile</span>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Heating</label>
+        <div class="tag-group" id="heat-group">
+          <span class="tag selected" data-val="unheated" onclick="selectTag(this,'heat-group')">Unheated</span>
+          <span class="tag" data-val="heated" onclick="selectTag(this,'heat-group')">Heated</span>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Season / climate</label>
+        <div class="tag-group" id="season-group">
+          <span class="tag selected" data-val="summer" onclick="selectTag(this,'season-group')">Summer</span>
+          <span class="tag" data-val="winter" onclick="selectTag(this,'season-group')">Winter</span>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px">
+        <label>Water source</label>
+        <div class="tag-group" id="water-group">
+          <span class="tag selected" data-val="municipal" onclick="selectTag(this,'water-group')">Municipal</span>
+          <span class="tag" data-val="borehole" onclick="selectTag(this,'water-group')">Borehole</span>
+          <span class="tag" data-val="mixed" onclick="selectTag(this,'water-group')">Mixed</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Sanitization method</label>
+        <div class="tag-group" id="sanit-group">
+          <span class="tag selected" data-val="chlorine"   onclick="selectTag(this,'sanit-group')">Chlorine</span>
+          <span class="tag" data-val="saltwater"  onclick="selectTag(this,'sanit-group')">Saltwater Chlorination</span>
+          <span class="tag" data-val="copper"     onclick="selectTag(this,'sanit-group')">Copper Ionization</span>
+          <span class="tag" data-val="uvozone"    onclick="selectTag(this,'sanit-group')">UV &amp; Ozone</span>
+          <span class="tag" data-val="natural"    onclick="selectTag(this,'sanit-group')">Natural Pool</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── POOL SIZE ────────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Pool dimensions</div>
+    <div class="field-grid">
+      <div class="field">
+        <label>Pool shape</label>
+        <select id="shape" onchange="updateShape()">
+          <option value="rect">Rectangular</option>
+          <option value="oval">Oval / Kidney</option>
+          <option value="round">Round / Circular</option>
+          <option value="custom">Enter volume directly</option>
+        </select>
+      </div>
+      <div class="field" id="len-field">
+        <label>Length (m)</label>
+        <input type="number" id="length" value="8" min="0" step="0.1" oninput="updateVol()">
+      </div>
+      <div class="field" id="wid-field">
+        <label>Width (m)</label>
+        <input type="number" id="width" value="4" min="0" step="0.1" oninput="updateVol()">
+      </div>
+      <div class="field" id="dia-field" style="display:none">
+        <label>Diameter (m)</label>
+        <input type="number" id="diameter" value="5" min="0" step="0.1" oninput="updateVol()">
+      </div>
+      <div class="field">
+        <label>Average depth (m)</label>
+        <input type="number" id="depth" value="1.5" min="0" step="0.1" oninput="updateVol()">
+      </div>
+      <div class="field" id="vol-direct-field" style="display:none">
+        <label>Volume (litres)</label>
+        <input type="number" id="vol-direct" value="50000" min="0" step="500" oninput="updateVol()">
+      </div>
+    </div>
+    <div class="vol-badge" id="vol-badge">
+      <span class="vol-number" id="vol-number">48 000</span>
+      <span class="vol-label">litres estimated</span>
+    </div>
+  </div>
+
+  <!-- ── WATER TEST READINGS ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-title">Water test readings</div>
+    <div class="steps-note">
+      Enter your readings below. Results follow <strong>Step 1 → 4</strong> — the correct Transcendence Pools treatment order. Leave any field blank if you haven't tested for it.
+    </div>
+
+    <!-- Step 1: TA -->
+    <div class="step-fields">
+      <div class="step-label"><span class="step-pill">STEP 1</span><span class="step-desc">Always check Total Alkalinity first</span></div>
+      <div class="field-grid">
+        <div class="field">
+          <label>Total alkalinity (ppm)</label>
+          <input type="number" id="alk" placeholder="e.g. 130" min="0" step="1">
+        </div>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <!-- Step 2 & 3: pH -->
+    <div class="step-fields">
+      <div class="step-label"><span class="step-pill">STEP 2 &amp; 3</span><span class="step-desc">Check pH after TA is balanced</span></div>
+      <div class="field-grid">
+        <div class="field">
+          <label>pH</label>
+          <input type="number" id="ph" placeholder="e.g. 7.3" min="0" step="0.1">
+        </div>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <!-- Step 4: Chlorine + stabiliser -->
+    <div class="step-fields">
+      <div class="step-label"><span class="step-pill">STEP 4</span><span class="step-desc">Always check chlorine last</span></div>
+      <div class="field-grid">
+        <div class="field">
+          <label>Free chlorine (ppm)</label>
+          <input type="number" id="chlorine" placeholder="e.g. 2.5" min="0" step="0.1">
+        </div>
+        <div class="field">
+          <label>Cyanuric acid / stabiliser (ppm)</label>
+          <input type="number" id="cya" placeholder="e.g. 40" min="0" step="1">
+          <div class="hint">CYA &gt; 100 ppm = chlorine lock risk</div>
+        </div>
+      </div>
+    </div>
+    <hr class="divider">
+
+    <!-- Metals & extras -->
+    <div class="step-fields">
+      <div class="step-label"><span class="step-pill">METALS &amp; EXTRAS</span><span class="step-desc">Check monthly or if water is discoloured</span></div>
+      <div class="field-grid">
+        <div class="field">
+          <label>Copper (ppm)</label>
+          <input type="number" id="copper" placeholder="e.g. 0.1" min="0" step="0.01">
+          <div class="hint">Max 0.2 ppm · Green water/hair if high</div>
+        </div>
+        <div class="field">
+          <label>Iron (ppm)</label>
+          <input type="number" id="iron" placeholder="e.g. 0.1" min="0" step="0.01">
+          <div class="hint">Brown/green water if elevated</div>
+        </div>
+        <div class="field">
+          <label>Calcium hardness (ppm)</label>
+          <input type="number" id="calc" placeholder="e.g. 250" min="0" step="1">
+        </div>
+        <div class="field">
+          <label>Total dissolved solids (ppm)</label>
+          <input type="number" id="tds" placeholder="e.g. 800" min="0" step="1">
+          <div class="hint">Check every 6 months</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">Calculate chemical doses</button>
+  </div>
+
+  <!-- ── RESULTS ──────────────────────────────────────────────────────────── -->
+  <div class="card" id="results-card" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <div class="card-title" style="margin-bottom:0;">Dosing recommendations</div>
+      <button onclick="printReport()" style="
+        display:flex;align-items:center;gap:7px;padding:9px 18px;
+        background:#1a5f8a;color:#fff;border:none;border-radius:8px;
+        font-size:13px;font-weight:600;cursor:pointer;letter-spacing:0.02em;
+      ">🖨 Print / Save PDF</button>
+    </div>
+    <div id="pool-context-tags" style="margin-bottom:14px"></div>
+    <div id="chlorine-lock-alert"></div>
+    <div id="borehole-alert"></div>
+    <div id="results"></div>
+    <div class="warning-box">
+      <strong>HydroChem reminders:</strong>
+      <ul>
+        <li>Never mix chemicals together — add one at a time.</li>
+        <li>Always mix chemicals with water first, then pour into the weir.</li>
+        <li>For alkalinity increaser, add maximum 500g at a time.</li>
+        <li>Add pool acid in the morning, chlorine at night.</li>
+        <li>Shock your pool once a month during swimming season.</li>
+        <li>Run pump at least 12 hrs/day in summer, 8 hrs/day in winter.</li>
+        <li>Retest water 24 hours after any chemical treatment.</li>
+      </ul>
+    </div>
+    <div class="disclaimer">
+      Results are based on HydroChem protocols adjusted for your pool's surface, sanitization method, season and water source. Always retest 24 hours after treatment. Contact us for a computerised water analysis.
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;">
+    <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="height:36px;width:36px;opacity:0.9;">
+      <g stroke="#cce4f5" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M28 14 L28 34 L16 54 Q14 58 18 60 L50 60 Q54 58 52 54 L40 34 L40 14 Z"/>
+        <line x1="26" y1="34" x2="42" y2="34"/>
+        <line x1="26" y1="14" x2="42" y2="14"/>
+        <circle cx="26" cy="46" r="2.5" fill="#8ec8e8" stroke="none"/>
+        <circle cx="33" cy="50" r="3.5" fill="#8ec8e8" stroke="none" opacity="0.8"/>
+        <circle cx="40" cy="43" r="2" fill="#8ec8e8" stroke="none" opacity="0.7"/>
+        <circle cx="33" cy="9" r="2" fill="none" stroke="#8ec8e8" stroke-width="1.8"/>
+        <circle cx="38" cy="5" r="2.5" fill="none" stroke="#8ec8e8" stroke-width="1.8"/>
+      </g>
+      <g transform="translate(50, 50)" stroke="#cce4f5" stroke-width="2" fill="none">
+        <circle cx="0" cy="0" r="12" stroke="#6aaace" stroke-width="2.5"/>
+        <rect x="-2" y="-15" width="4" height="5" rx="1" fill="#cce4f5" stroke="none"/>
+        <rect x="-2" y="10" width="4" height="5" rx="1" fill="#cce4f5" stroke="none"/>
+        <rect x="-15" y="-2" width="5" height="4" rx="1" fill="#cce4f5" stroke="none"/>
+        <rect x="10" y="-2" width="5" height="4" rx="1" fill="#cce4f5" stroke="none"/>
+        <path d="M0-7 Q5 0 0 7 Q-5 0 0-7 Z" fill="none" stroke="#8ec8e8" stroke-width="1.8"/>
+      </g>
+    </svg>
+    <span style="font-size:18px;font-weight:700;color:#cce4f5;letter-spacing:-0.01em;">HydroChem</span>
+  </div>
+  <div class="footer-tagline">Professional Pool Water Analysis</div>
+  <div class="footer-copy">Results are based on HydroChem protocols adjusted for your pool's surface, sanitization method, season and water source. Always retest 24 hours after treatment.</div>
+</footer>
+
+<script>
+
+// ── Tag selection ──────────────────────────────────────────────────────────
+function selectTag(el, groupId) {
+  document.getElementById(groupId).querySelectorAll('.tag').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function getTag(groupId) {
+  const sel = document.getElementById(groupId).querySelector('.tag.selected');
+  return sel ? sel.dataset.val : null;
+}
+
+// ── Volume ─────────────────────────────────────────────────────────────────
+function getVolumeLitres() {
+  const s = document.getElementById('shape').value;
+  const d = parseFloat(document.getElementById('depth').value) || 0;
+  if (s === 'rect') {
+    return (parseFloat(document.getElementById('length').value)||0) * (parseFloat(document.getElementById('width').value)||0) * d * 1000;
+  } else if (s === 'oval') {
+    return (parseFloat(document.getElementById('length').value)||0) * (parseFloat(document.getElementById('width').value)||0) * d * 0.85 * 1000;
+  } else if (s === 'round') {
+    const dia = parseFloat(document.getElementById('diameter').value)||0;
+    return Math.PI * (dia/2) * (dia/2) * d * 1000;
+  } else {
+    return parseFloat(document.getElementById('vol-direct').value)||0;
+  }
+}
+function updateVol() {
+  document.getElementById('vol-number').textContent = Math.round(getVolumeLitres()).toLocaleString('en-ZA');
+}
+function updateShape() {
+  const s = document.getElementById('shape').value;
+  document.getElementById('len-field').style.display        = (s==='round'||s==='custom') ? 'none' : '';
+  document.getElementById('wid-field').style.display        = (s==='round'||s==='custom') ? 'none' : '';
+  document.getElementById('dia-field').style.display        = s==='round' ? '' : 'none';
+  document.getElementById('vol-direct-field').style.display = s==='custom' ? '' : 'none';
+  document.getElementById('vol-badge').style.display        = s==='custom' ? 'none' : '';
+  updateVol();
+}
+
+// ── HTML helpers ───────────────────────────────────────────────────────────
+function stepHeader(pill, title) {
+  return `<div class="result-step-header"><span class="result-step-pill">${pill}</span><span class="result-step-title">${title}</span></div>`;
+}
+function resultItem(status, name, action, range) {
+  return `<div class="result-item ${status}"><div class="result-name ${status}">${name}</div><div class="result-action">${action}</div>${range ? `<div class="result-range">${range}</div>` : ''}</div>`;
+}
+function fmtG(g) { return Math.round(g).toLocaleString('en-ZA') + 'g'; }
+function fmtL(l) { return Math.round(l * 10) / 10 + 'L'; }
+
+// ── Surface target ranges ──────────────────────────────────────────────────
+function getSurfaceTargets(surface, sanit) {
+  // Returns {taLow, taHigh, taTarget, phLow, phHigh, phTarget, clLow, clHigh, clTarget, chLow, chHigh, chTarget}
+  const defaults = { taLow:125, taHigh:155, taTarget:140, phLow:7.2, phHigh:7.4, phTarget:7.3, clLow:2, clHigh:4, clTarget:3, chLow:250, chHigh:500, chTarget:350 };
+
+  if (surface === 'marblelite') {
+    // Marblelite (marbelite): a plaster-based finish, very sensitive to low pH which etches and pits the surface.
+    // Higher TA and higher CH needed to protect the finish. Keep pH at higher end of range.
+    return { taLow:100, taHigh:150, taTarget:125, phLow:7.4, phHigh:7.6, phTarget:7.5, clLow:1, clHigh:3, clTarget:2, chLow:200, chHigh:400, chTarget:300 };
+  }
+  if (surface === 'fibreglass_lining') {
+    // Fibreglass lining: similar to fibreglass shell but can be more sensitive to chemical imbalance
+    // causing osmotic blistering if pH/CH are too low. Use fibreglass Southern Cape ranges.
+    return defaults;
+  }
+  if (surface === 'epoxy') {
+    // Epoxy-painted pools: low pH strips the epoxy coating. Keep pH at higher end.
+    // Avoid adding chemicals directly — always pre-dissolve.
+    return { taLow:100, taHigh:150, taTarget:125, phLow:7.4, phHigh:7.6, phTarget:7.5, clLow:1, clHigh:3, clTarget:2, chLow:200, chHigh:400, chTarget:300 };
+  }
+  if (surface === 'tile') {
+    // Tiled pools: scale forms easily at high pH or high calcium hardness.
+    // Very difficult to remove from grout lines once formed.
+    return { taLow:80, taHigh:120, taTarget:100, phLow:7.2, phHigh:7.6, phTarget:7.4, clLow:1, clHigh:3, clTarget:2, chLow:150, chHigh:350, chTarget:250 };
+  }
+  // fibreglass (shell) — Southern Cape specific defaults
+  return defaults;
+}
+
+// ── Sanitation adjustments ─────────────────────────────────────────────────
+function getSanitNotes(sanit) {
+  const notes = {
+    saltwater:  'Saltwater pools: keep salt at 2–4 bags of 25kg per 10 000L. Clean the chlorinator cell weekly in a 1:10 weak acid solution. Do not run the chlorinator with intervals — it must run continuously. Unbalanced water will damage the cell.',
+    copper:     'Copper ionization: keep copper levels between 0.2–0.4 ppm. Test copper monthly. Maintain pH between 7.2–7.4 to prevent copper precipitation and staining. Copper ionization reduces but does not eliminate the need for chlorine.',
+    uvozone:    'UV/Ozone systems: UV and ozone handle most sanitization but a low chlorine residual (0.5–1.5 ppm) is still recommended as a backup. Check UV lamp life every 12 months.',
+    natural:    'Natural pool: avoid all synthetic chlorine. Use beneficial bacteria products and maintain good plant filter zone. pH 6.8–7.4. Test weekly.',
+    chlorine:   null
+  };
+  return notes[sanit] || null;
+}
+
+// ── Main calculate ─────────────────────────────────────────────────────────
+function calculate() {
+  const volL = getVolumeLitres();
+  if (volL <= 0) { alert('Please enter valid pool dimensions.'); return; }
+
+  const vol10kL = volL / 10000;
+  const surface = getTag('surface-group')  || 'fibreglass';
+  const heat    = getTag('heat-group')     || 'unheated';
+  const season  = getTag('season-group')   || 'summer';
+  const water   = getTag('water-group')    || 'municipal';
+  const sanit   = getTag('sanit-group')    || 'chlorine';
+
+  const tgt = getSurfaceTargets(surface, sanit);
+
+  const alk     = parseFloat(document.getElementById('alk').value);
+  const ph      = parseFloat(document.getElementById('ph').value);
+  const cl      = parseFloat(document.getElementById('chlorine').value);
+  const cya     = parseFloat(document.getElementById('cya').value);
+  const copper  = parseFloat(document.getElementById('copper').value);
+  const iron    = parseFloat(document.getElementById('iron').value);
+  const calc    = parseFloat(document.getElementById('calc').value);
+  const tds     = parseFloat(document.getElementById('tds').value);
+
+  // ── Context badges ────────────────────────────────────────────────────────
+  const surfaceLabels = { marblelite:'Marblelite', fibreglass:'Fibreglass', fibreglass_lining:'Fibreglass Lining', epoxy:'Epoxy', tile:'Tile' };
+  const sanitLabels   = { chlorine:'Chlorine Pool', saltwater:'Saltwater Chlorination', copper:'Copper Ionization', uvozone:'UV & Ozone', natural:'Natural Pool' };
+  document.getElementById('pool-context-tags').innerHTML =
+    `<span class="context-badge">🏊 ${surfaceLabels[surface]||surface}</span>` +
+    `<span class="context-badge">${heat==='heated'?'🔥 Heated':'❄ Unheated'}</span>` +
+    `<span class="context-badge">${season==='summer'?'☀ Summer':'🌧 Winter'}</span>` +
+    `<span class="context-badge">${water==='borehole'?'🕳 Borehole':water==='mixed'?'🔀 Mixed Water':'🚿 Municipal'}</span>` +
+    `<span class="context-badge">⚗ ${sanitLabels[sanit]||sanit}</span>`;
+
+  // ── Chlorine lock detection ───────────────────────────────────────────────
+  let lockHtml = '';
+  const cyaLock = !isNaN(cya) && cya > 100;
+  const phLock  = !isNaN(ph) && ph > 8.0;
+  const clLow   = !isNaN(cl) && cl < tgt.clLow;
+  if (cyaLock || (phLock && clLow)) {
+    let lockReasons = [];
+    if (cyaLock) lockReasons.push(`CYA is ${cya} ppm (above the 100 ppm danger threshold)`);
+    if (phLock)  lockReasons.push(`pH is ${ph} (above 8.0 — chlorine is less than 10% active)`);
+    lockHtml = `<div class="chlorine-lock-banner">
+      <h3>Chlorine Lock Warning</h3>
+      <p>Your pool may be experiencing chlorine lock — chlorine is present but rendered ineffective. Signs include: cloudy or green water despite normal chlorine readings, no improvement after shocking, and a strong "chlorine" chemical smell (actually chloramines).</p>
+      <p><strong>Cause${lockReasons.length>1?'s':''}:</strong> ${lockReasons.join(' · ')}</p>
+      <p><strong>How to fix it:</strong></p>
+      <ul>
+        ${cyaLock ? '<li><strong>Drain and refill:</strong> Partially drain 25–50% of your pool and refill with fresh water. This is the only way to lower CYA — it cannot be removed chemically.</li>' : ''}
+        <li><strong>Stop using stabilised chlorine</strong> (trichlor tablets / dichlor granules) — these add more CYA every time you use them. Switch to Calcium Hypochlorite (Cal Hypo) which adds no CYA.</li>
+        ${phLock ? '<li><strong>Lower pH first</strong> — bring pH below 7.6 before adding any more chlorine.</li>' : ''}
+        <li><strong>Do not add more chlorine</strong> until the lock is broken — it will make the situation worse.</li>
+        <li>Limit chlorine floaters to 6 months of the year to prevent CYA build-up.</li>
+      </ul>
+    </div>`;
+  }
+  document.getElementById('chlorine-lock-alert').innerHTML = lockHtml;
+
+  // ── Borehole water alert ──────────────────────────────────────────────────
+  let boreholeHtml = '';
+  if (water === 'borehole' || water === 'mixed') {
+    boreholeHtml = `<div class="borehole-alert">
+      <strong>⚠ Borehole water alert:</strong> Borehole water often contains elevated metals (iron, manganese, copper), high calcium hardness, and variable pH — all of which make balancing harder. We strongly recommend a <strong>full computerised water analysis</strong> before adding chemicals. Iron above 0.3 ppm will stain your pool lining. Consider adding a metal chelating agent (e.g. HTH Iron & Metal Remover) when topping up with borehole water.
+    </div>`;
+  }
+  document.getElementById('borehole-alert').innerHTML = boreholeHtml;
+
+  // ── Heated pool / season adjustments ─────────────────────────────────────
+  // Heated pools: chlorine dissipates faster, test more frequently
+  // Winter: pump less, chemistry more stable but still needs monitoring
+  const heatedNote = heat === 'heated'
+    ? '<br><em>Heated pool note: higher water temperature accelerates chlorine loss and algae growth — test and dose more frequently, especially in summer.</em>'
+    : '';
+  const seasonNote = season === 'winter'
+    ? ' Run your pump at least 8 hours daily in winter. Even in winter, test TA and pH monthly.'
+    : ' Run your pump at least 12 hours daily in summer.';
+
+  // ── Sanitation method note ────────────────────────────────────────────────
+  const sanitNote = getSanitNotes(sanit);
+
+  let html = '';
+
+  // ── Surface-specific warning ──────────────────────────────────────────────
+  const surfaceWarnings = {
+    marblelite:        'Marblelite surface: pH below 7.2 will etch and pit the marbelite finish over time. Keep pH at 7.4–7.6 and maintain calcium hardness above 200 ppm to protect the surface. Always pre-dissolve chemicals before adding — never add directly into the pool.',
+    fibreglass:        null,
+    fibreglass_lining: 'Fibreglass lining: maintain balanced water at all times. Low pH or low calcium hardness can cause osmotic blistering of the lining. Never add chemicals directly into the pool — always dilute first and pour into the weir.',
+    epoxy:             'Epoxy surface: low pH strips the epoxy coating prematurely. Keep pH at 7.4–7.6 at all times. Always pre-dissolve chemicals and add to the weir — never directly onto the pool surface. Check for blistering or peeling regularly.',
+    tile:              'Tiled surface: scale forms easily at high pH or high calcium hardness and is very difficult to remove from grout lines once it forms. Keep pH 7.2–7.6 and calcium hardness 150–350 ppm. Brush tile line weekly to prevent build-up.',
+  };
+  const sw = surfaceWarnings[surface];
+  if (sw) {
+    html += resultItem('info', 'Surface note: ' + (surfaceLabels[surface]||surface), sw, null);
+  }
+
+  // ── Sanitation method note ────────────────────────────────────────────────
+  if (sanitNote) {
+    html += resultItem('info', 'Sanitization note: ' + (sanitLabels[sanit]||sanit), sanitNote, null);
+  }
+
+  // ── STEP 1: Total Alkalinity ──────────────────────────────────────────────
+  if (!isNaN(alk)) {
+    html += stepHeader('STEP 1', 'Total Alkalinity — treat first');
+    if (alk >= tgt.taLow && alk <= tgt.taHigh) {
+      html += resultItem('ok', `Total alkalinity is in range (${alk} ppm)`,
+        'Good. Proceed to check pH (Step 2).' + heatedNote,
+        `Target for ${surfaceLabels[surface]||'your pool'}: ${tgt.taLow}–${tgt.taHigh} ppm`);
+    } else if (alk < tgt.taLow) {
+      const totalG = Math.round((tgt.taTarget - alk) * vol10kL * 18);
+      const doses  = Math.ceil(totalG / 500);
+      html += resultItem('add', `Total alkalinity is low (${alk} ppm)`,
+        `Add a total of <strong>${fmtG(totalG)}</strong> of alkalinity increaser (sodium bicarbonate / bicarb), mixed with water. ` +
+        `Add in doses of 500g at a time — approximately <strong>${doses} dose${doses>1?'s':''}</strong>. ` +
+        `Wait and retest between doses. Do not add when chlorine is high — it will stain.` + heatedNote,
+        `Target: ${tgt.taLow}–${tgt.taHigh} ppm | Build to ${tgt.taTarget} ppm first, then recheck pH`);
+    } else {
+      const totalG = Math.round((alk - tgt.taTarget) * vol10kL * 14);
+      html += resultItem('high', `Total alkalinity is high (${alk} ppm)`,
+        `Add approximately <strong>${fmtG(totalG)}</strong> of dry acid (sodium bisulfate) or pool acid in 2–3 doses over 48 hours. Retest between doses.` + heatedNote,
+        `Target: ${tgt.taLow}–${tgt.taHigh} ppm | High TA causes cloudy water, scale and reduced chlorine efficiency`);
+    }
+  }
+
+  // ── STEP 2 & 3: pH ───────────────────────────────────────────────────────
+  if (!isNaN(ph)) {
+    html += stepHeader('STEP 2 &amp; 3', 'pH — adjust after TA is balanced');
+    if (ph >= tgt.phLow && ph <= tgt.phHigh) {
+      html += resultItem('ok', `pH is in range (${ph})`,
+        'Good. Proceed to check chlorine (Step 4).' + seasonNote,
+        `Target for ${surfaceLabels[surface]||'your pool'}: ${tgt.phLow}–${tgt.phHigh}`);
+    } else if (ph < tgt.phLow) {
+      const bothLow = !isNaN(alk) && alk < tgt.taLow;
+      const action = bothLow
+        ? `Your TA is also low. Build TA to ${tgt.taTarget} ppm first (Step 1) — pH may correct itself. If pH remains low after TA is balanced, add soda ash (sodium carbonate) around the pool edge.`
+        : `Add approximately <strong>${fmtG(Math.round((tgt.phTarget - ph) * vol10kL * 180))}</strong> of soda ash (sodium carbonate), mixed with water, poured around the pool edge in stages. Add acid in the morning, chlorine at night.`;
+      const danger = ph < 6.8
+        ? ' <strong>⚠ pH below 6.8 is corrosive — this is damaging your pool lining, metal fixtures and equipment. Act immediately.</strong>'
+        : '';
+      html += resultItem(ph < 6.8 ? 'high' : 'add', `pH is low (${ph})`, action + danger,
+        `Target: ${tgt.phLow}–${tgt.phHigh} | pH < 6.8 = corrosive water, staining and eye irritation`);
+    } else {
+      const phNote = ph > 8.0
+        ? ' At this level, chlorine is less than 10% active — your pool is barely being sanitized.'
+        : '';
+      const totalG = Math.round((ph - tgt.phTarget) * vol10kL * 140);
+      html += resultItem('high', `pH is high (${ph})`,
+        `Add approximately <strong>${fmtG(totalG)}</strong> of dry acid or diluted pool acid (hydrochloric acid) around the pool edge in the morning. Never add acid and chlorine at the same time.${phNote}${seasonNote}`,
+        `Target: ${tgt.phLow}–${tgt.phHigh} | pH > 7.6 = cloudy water, scale, poor chlorine efficiency`);
+    }
+  }
+
+  // ── STEP 4: Chlorine ─────────────────────────────────────────────────────
+  if (!isNaN(cl) && sanit !== 'natural') {
+    html += stepHeader('STEP 4', 'Chlorine — always check last');
+    // Adjust targets for UV/Ozone (lower residual needed)
+    const clLow  = sanit === 'uvozone' ? 0.5 : tgt.clLow;
+    const clHigh = sanit === 'uvozone' ? 1.5 : tgt.clHigh;
+    const clTgt  = sanit === 'uvozone' ? 1.0 : tgt.clTarget;
+
+    if (cl >= clLow && cl <= clHigh) {
+      html += resultItem('ok', `Free chlorine is in range (${cl} ppm)`, 'Good. No chlorine addition needed.',
+        `Target for ${sanitLabels[sanit]||'your system'}: ${clLow}–${clHigh} ppm`);
+    } else if (cl < clLow) {
+      const totalG = Math.round((clTgt - cl) * vol10kL * 13);
+      html += resultItem('add', `Free chlorine is low (${cl} ppm)`,
+        `Add approximately <strong>${fmtG(totalG)}</strong> of dry granular chlorine (Calcium Hypochlorite / Cal Hypo preferred — does not add CYA). Mix with water first, pour into the weir. Add in the evening.` + heatedNote,
+        `Target: ${clLow}–${clHigh} ppm | Low chlorine = algae and cloudy water`);
+    } else {
+      html += resultItem('high', `Free chlorine is high (${cl} ppm)`,
+        'Do not add more chlorine. Keep the pump running. Allow levels to drop naturally (1–3 days). Avoid swimming until below ' + clHigh + ' ppm.' + heatedNote,
+        `Target: ${clLow}–${clHigh} ppm | High chlorine causes eye irritation and pool lining bleaching`);
+    }
+  }
+
+  // ── Cyanuric acid / CYA ──────────────────────────────────────────────────
+  if (!isNaN(cya)) {
+    html += stepHeader('CYA / STABILISER', 'Chlorine protection');
+    if (cya >= 30 && cya <= 80) {
+      html += resultItem('ok', `Cyanuric acid is in range (${cya} ppm)`, 'Good. Limit chlorine floater use to 6 months/year to prevent CYA build-up.',
+        'Target: 30–80 ppm | Above 100 ppm = chlorine lock risk');
+    } else if (cya < 30) {
+      const totalG = Math.round((50 - cya) * vol10kL * 10);
+      html += resultItem('add', `Cyanuric acid is low (${cya} ppm)`,
+        `Add approximately <strong>${fmtG(totalG)}</strong> of pool stabiliser (cyanuric acid) as a slurry through the skimmer with the pump running.`,
+        'Target: 30–80 ppm | Stabiliser protects chlorine from UV degradation');
+    } else if (cya <= 100) {
+      html += resultItem('warning', `Cyanuric acid is elevated (${cya} ppm)`,
+        'Approaching chlorine lock territory. Stop using stabilised chlorine (trichlor/dichlor). Switch to Cal Hypo (no CYA). Monitor closely — if CYA rises above 100 ppm you will need to partially drain the pool.',
+        'Target: 30–80 ppm | 80–100 ppm = caution zone | Above 100 ppm = chlorine lock');
+    } else {
+      html += resultItem('high', `⚠ Cyanuric acid is dangerously high (${cya} ppm) — Chlorine Lock`,
+        '<strong>Chlorine lock confirmed.</strong> Drain 25–50% of the pool and refill with fresh water. Do not add any more chlorine until CYA is below 80 ppm. Switch to Calcium Hypochlorite (Cal Hypo) for all future chlorination — it adds zero CYA.',
+        'Target: 30–80 ppm | Above 100 ppm = chlorine is rendered completely ineffective');
+    }
+  }
+
+  // ── Copper ───────────────────────────────────────────────────────────────
+  if (!isNaN(copper)) {
+    html += stepHeader('METALS', 'Copper, Iron & Calcium');
+    if (copper <= 0.2) {
+      html += resultItem('ok', `Copper is acceptable (${copper} ppm)`,
+        sanit === 'copper' ? 'For copper ionization, maintain 0.2–0.4 ppm for effective algae control.' : 'No action needed.',
+        'Maximum: 0.2 ppm | High copper causes green water and green hair');
+    } else {
+      html += resultItem('high', `Copper is high (${copper} ppm)`,
+        `<strong>Act quickly</strong> — high copper stains pool walls, floors and turns hair green. ` +
+        (water === 'borehole' ? 'Borehole water often contains elevated copper — consider a pre-filter. ' : '') +
+        `Add a metal chelating agent (HTH Iron & Metal Remover). Check pH is not too low (low pH dissolves copper from pipes and equipment). Do not use a copper-based algaecide. Partial drain and refill may be needed.`,
+        'Maximum: 0.2 ppm | Causes green water, green hair and staining of pool lining');
+    }
+  }
+
+  // ── Iron ─────────────────────────────────────────────────────────────────
+  if (!isNaN(iron)) {
+    if (iron <= 0.1) {
+      html += resultItem('ok', `Iron is acceptable (${iron} ppm)`, 'No action needed.',
+        'Ideal: below 0.1 ppm | Iron causes brown/rust-coloured water and staining');
+    } else {
+      html += resultItem('high', `Iron is elevated (${iron} ppm)`,
+        `Add HTH Iron & Metal Remover (a chelating agent) according to dosage instructions. ` +
+        (water === 'borehole' ? 'Borehole water is a common source of iron — always treat before adding to pool or use inline pre-filter. ' : '') +
+        `Vacuum pool to waste after treatment to remove precipitates. Check pH — keep above 7.2 to prevent iron from dissolving out of solution.`,
+        'Ideal: below 0.1 ppm | Iron causes brown/rust water and wall staining');
+    }
+  }
+
+  // ── Calcium hardness ─────────────────────────────────────────────────────
+  if (!isNaN(calc)) {
+    html += stepHeader('CALCIUM HARDNESS', 'Check monthly');
+    if (calc >= tgt.chLow && calc <= tgt.chHigh) {
+      html += resultItem('ok', `Calcium hardness is in range (${calc} ppm)`, 'Good. Recheck monthly.',
+        `Target for ${surfaceLabels[surface]||'your pool'}: ${tgt.chLow}–${tgt.chHigh} ppm`);
+    } else if (calc < tgt.chLow) {
+      const totalG = Math.round((tgt.chTarget - calc) * vol10kL * 15);
+      html += resultItem('add', `Calcium hardness is low (${calc} ppm)`,
+        `Add approximately <strong>${fmtG(totalG)}</strong> of calcium chloride. Dissolve in a bucket of water first, then pour into the weir.` +
+        (surface === 'marblelite' || surface === 'epoxy' || surface === 'fibreglass_lining' ? ' Low calcium hardness is particularly damaging to ' + (surfaceLabels[surface]||'your') + ' surfaces — act promptly.' : ''),
+        `Target: ${tgt.chLow}–${tgt.chHigh} ppm | Low calcium makes water corrosive to pool surfaces`);
+    } else {
+      html += resultItem('high', `Calcium hardness is high (${calc} ppm)`,
+        'Partially drain 25–50% and refill with fresh water. High calcium causes scale formation — particularly visible on tile and glass bead surfaces.',
+        `Target: ${tgt.chLow}–${tgt.chHigh} ppm | High calcium causes scale on surfaces and equipment`);
+    }
+  }
+
+  // ── TDS ──────────────────────────────────────────────────────────────────
+  if (!isNaN(tds)) {
+    html += stepHeader('TDS', 'Check every 6 months');
+    const tdsMax = sanit === 'saltwater' ? 6000 : 2500;
+    const tdsLabel = sanit === 'saltwater' ? '(higher limit for saltwater pools)' : '';
+    if (tds <= tdsMax) {
+      html += resultItem('ok', `Total dissolved solids are acceptable (${tds} ppm)`, `No action needed. ${tdsLabel} Recheck in 6 months.`,
+        `Maximum: ${tdsMax.toLocaleString('en-ZA')} ppm ${tdsLabel}`);
+    } else {
+      html += resultItem('high', `TDS is high (${tds} ppm)`,
+        'Partially drain 25–50% and refill with fresh water. High TDS causes corrosion, coloured water and reduces effectiveness of all chemicals. The only way to lower TDS is to dilute with fresh water.',
+        `Maximum: ${tdsMax.toLocaleString('en-ZA')} ppm | High TDS causes salty taste, corrosion and poor chemical effectiveness`);
+    }
+  }
+
+  if (!html && !lockHtml) {
+    alert('Please enter at least one water test reading.');
+    return;
+  }
+
+  document.getElementById('results').innerHTML = html;
+  document.getElementById('results-card').style.display = '';
+  document.getElementById('results-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Photo upload ────────────────────────────────────────────────────────────
+let poolPhotoDataURL = null;
+
+function handlePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    poolPhotoDataURL = e.target.result;
+    const preview = document.getElementById('pool-photo-preview');
+    const placeholder = document.getElementById('photo-placeholder');
+    const removeBtn = document.getElementById('remove-photo-btn');
+    preview.src = poolPhotoDataURL;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    removeBtn.style.display = 'inline-block';
+    document.getElementById('photo-drop-zone').style.borderColor = '#2980b9';
+    document.getElementById('photo-drop-zone').style.background = '#eaf4fb';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  poolPhotoDataURL = null;
+  const preview = document.getElementById('pool-photo-preview');
+  const placeholder = document.getElementById('photo-placeholder');
+  const removeBtn = document.getElementById('remove-photo-btn');
+  preview.style.display = 'none';
+  preview.src = '';
+  placeholder.style.display = 'block';
+  removeBtn.style.display = 'none';
+  document.getElementById('photo-drop-zone').style.borderColor = '#b8d8ee';
+  document.getElementById('photo-drop-zone').style.background = '#f7fbfe';
+  document.getElementById('pool-photo-input').value = '';
+}
+
+// ── Print / PDF report ──────────────────────────────────────────────────────
+function printReport() {
+  const clientName = document.getElementById('client-name').value.trim() || 'Client';
+  const reportDateVal = document.getElementById('report-date').value;
+  const reportDate = reportDateVal
+    ? new Date(reportDateVal).toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'})
+    : new Date().toLocaleDateString('en-ZA', {day:'numeric',month:'long',year:'numeric'});
+
+  // Gather pool context
+  const surface = document.querySelector('#surface-group .tag.selected')?.dataset.val || '';
+  const heat    = document.querySelector('#heat-group .tag.selected')?.dataset.val || '';
+  const season  = document.querySelector('#season-group .tag.selected')?.dataset.val || '';
+  const water   = document.querySelector('#water-group .tag.selected')?.dataset.val || '';
+  const sanit   = document.querySelector('#sanit-group .tag.selected')?.dataset.val || '';
+  const volKL   = document.getElementById('vol-display')?.textContent || '';
+
+  // Get results HTML
+  const resultsHTML   = document.getElementById('results')?.innerHTML || '';
+  const remindersHTML = document.querySelector('.warning-box')?.outerHTML || '';
+  const contextTags   = document.getElementById('pool-context-tags')?.innerHTML || '';
+  const chlorineLock  = document.getElementById('chlorine-lock-alert')?.innerHTML || '';
+  const boreholeAlert = document.getElementById('borehole-alert')?.innerHTML || '';
+
+  const photoSection = poolPhotoDataURL
+    ? `<div style="margin:18px 0;text-align:center;">
+        <img src="${poolPhotoDataURL}" alt="Pool photo" style="max-width:100%;max-height:280px;border-radius:10px;border:1px solid #d0e4f0;object-fit:cover;">
+        <div style="font-size:11px;color:#7a9aaa;margin-top:5px;">${clientName}'s pool</div>
+       </div>`
+    : '';
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HydroChem Report — ${clientName}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a2a3a; background: #fff; font-size: 13px; }
+  .page { max-width: 720px; margin: 0 auto; padding: 32px 28px; }
+
+  /* Header */
+  .report-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 2px solid #1a5f8a; margin-bottom: 20px; }
+  .report-logo { display: flex; align-items: center; gap: 10px; }
+  .report-logo-text { font-size: 20px; font-weight: 700; color: #1a2a3a; letter-spacing: -0.02em; }
+  .report-logo-sub { font-size: 10px; color: #5a8aaa; text-transform: uppercase; letter-spacing: 0.1em; }
+  .report-meta { text-align: right; }
+  .report-meta .report-date { font-size: 12px; color: #5a7a8a; }
+  .report-meta .client-name { font-size: 16px; font-weight: 700; color: #1a5f8a; margin-top: 3px; }
+
+  /* Section titles */
+  .section-title { font-size: 11px; font-weight: 700; color: #2980b9; text-transform: uppercase; letter-spacing: 0.08em; margin: 18px 0 10px; padding-left: 10px; border-left: 3px solid #2980b9; }
+
+  /* Pool summary bar */
+  .pool-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .pool-summary .tag { background: #eaf4fb; border: 1px solid #b8d8ee; border-radius: 6px; padding: 3px 10px; font-size: 11px; color: #1a5f8a; font-weight: 600; }
+
+  /* Result items */
+  .result-item { border-radius: 8px; padding: 10px 13px; border-left: 4px solid; margin-bottom: 7px; page-break-inside: avoid; }
+  .result-item.ok      { background: #eafaf1; border-color: #27ae60; }
+  .result-item.add     { background: #fef9e7; border-color: #f39c12; }
+  .result-item.high    { background: #fdf2f0; border-color: #e74c3c; }
+  .result-item.warning { background: #fff3cd; border-color: #e67e22; }
+  .result-item.info    { background: #eaf4fb; border-color: #2980b9; }
+  .result-name { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+  .result-name.ok      { color: #1e8449; }
+  .result-name.add     { color: #b7770d; }
+  .result-name.high    { color: #c0392b; }
+  .result-name.warning { color: #c0612b; }
+  .result-name.info    { color: #1a5f8a; }
+  .result-action { font-size: 13px; color: #1a2a3a; line-height: 1.55; }
+  .result-action ul { padding-left: 16px; margin-top: 3px; }
+  .result-action li  { margin-bottom: 2px; }
+  .result-range  { font-size: 11px; color: #7a9aaa; margin-top: 4px; }
+  .result-step-header { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; }
+  .result-step-pill { background: #2980b9; color: #fff; font-size: 10px; font-weight: 700; border-radius: 20px; padding: 2px 10px; }
+  .result-step-title { font-size: 12px; font-weight: 600; color: #1a5f8a; }
+  .context-badge { display: inline-block; background: #eaf4fb; border: 1px solid #b8d8ee; border-radius: 5px; padding: 2px 7px; font-size: 10px; color: #1a5f8a; margin-right: 3px; margin-bottom: 3px; }
+  .chlorine-lock-banner { background: #fff3cd; border: 2px solid #e67e22; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+  .chlorine-lock-banner h3 { color: #c0392b; font-size: 13px; margin-bottom: 6px; }
+  .chlorine-lock-banner p, .chlorine-lock-banner ul { font-size: 12px; color: #7a3d00; line-height: 1.5; }
+  .chlorine-lock-banner ul { padding-left: 16px; }
+  .borehole-alert { background: #fdf2f0; border: 1px solid #f5b7b1; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; font-size: 12px; color: #7a2a1a; line-height: 1.5; }
+  .warning-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #7a5a00; margin-top: 12px; line-height: 1.6; }
+  .warning-box ul { padding-left: 16px; margin-top: 5px; }
+
+  /* Footer */
+  .report-footer { margin-top: 24px; padding-top: 14px; border-top: 1px solid #d0e4f0; display: flex; justify-content: space-between; font-size: 10px; color: #7a9aaa; }
+
+  /* Disclaimer */
+  .disclaimer { font-size: 11px; color: #7a9aaa; margin-top: 12px; padding: 10px 12px; background: #f0f7fc; border-radius: 6px; line-height: 1.5; }
+
+  @media print {
+    body { font-size: 12px; }
+    .no-print { display: none !important; }
+    .page { padding: 16px; }
+    @page { margin: 1.5cm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="report-header">
+    <div class="report-logo">
+      <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style="height:44px;width:44px;">
+        <g stroke="#1a5f8a" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M28 14 L28 34 L16 54 Q14 58 18 60 L50 60 Q54 58 52 54 L40 34 L40 14 Z"/>
+          <line x1="26" y1="34" x2="42" y2="34"/>
+          <line x1="26" y1="14" x2="42" y2="14"/>
+          <circle cx="26" cy="46" r="2.5" fill="#3aa0d0" stroke="none"/>
+          <circle cx="33" cy="50" r="3.5" fill="#3aa0d0" stroke="none" opacity="0.8"/>
+          <circle cx="40" cy="43" r="2" fill="#3aa0d0" stroke="none" opacity="0.7"/>
+          <circle cx="33" cy="9" r="2" fill="none" stroke="#3aa0d0" stroke-width="1.8"/>
+          <circle cx="38" cy="5" r="2.5" fill="none" stroke="#3aa0d0" stroke-width="1.8"/>
+        </g>
+        <g transform="translate(50, 50)" stroke="#1a5f8a" stroke-width="2" fill="none">
+          <circle cx="0" cy="0" r="12" stroke="#b0c8d8" stroke-width="2.5"/>
+          <rect x="-2" y="-15" width="4" height="5" rx="1" fill="#1a5f8a" stroke="none"/>
+          <rect x="-2" y="10" width="4" height="5" rx="1" fill="#1a5f8a" stroke="none"/>
+          <rect x="-15" y="-2" width="5" height="4" rx="1" fill="#1a5f8a" stroke="none"/>
+          <rect x="10" y="-2" width="5" height="4" rx="1" fill="#1a5f8a" stroke="none"/>
+          <path d="M0-7 Q5 0 0 7 Q-5 0 0-7 Z" fill="none" stroke="#3aa0d0" stroke-width="1.8"/>
+        </g>
+      </svg>
+      <div>
+        <div class="report-logo-text">HydroChem</div>
+        <div class="report-logo-sub">Pool Water Analysis</div>
+      </div>
+    </div>
+    <div class="report-meta">
+      <div class="report-date">Water analysis report · ${reportDate}</div>
+      <div class="client-name">${clientName}</div>
+    </div>
+  </div>
+
+  ${photoSection}
+
+  <!-- Pool summary -->
+  <div class="section-title">Pool profile</div>
+  <div class="pool-summary">
+    ${volKL ? `<span class="tag">Volume: ${volKL}</span>` : ''}
+    ${surface ? `<span class="tag">${surface.charAt(0).toUpperCase()+surface.slice(1).replace('_',' ')}</span>` : ''}
+    ${sanit ? `<span class="tag">${sanit.charAt(0).toUpperCase()+sanit.slice(1)}</span>` : ''}
+    ${season ? `<span class="tag">${season.charAt(0).toUpperCase()+season.slice(1)}</span>` : ''}
+    ${heat !== 'unheated' ? `<span class="tag">Heated</span>` : '<span class="tag">Unheated</span>'}
+    ${water ? `<span class="tag">Water: ${water.charAt(0).toUpperCase()+water.slice(1)}</span>` : ''}
+  </div>
+
+  <!-- Results -->
+  <div class="section-title">Dosing recommendations</div>
+  ${chlorineLock}
+  ${boreholeAlert}
+  ${resultsHTML}
+  ${remindersHTML}
+
+  <div class="disclaimer">
+    Results are based on HydroChem protocols adjusted for your pool's surface, sanitization method, season and water source. Always retest 24 hours after treatment.
+  </div>
+
+  <!-- Footer -->
+  <div class="report-footer">
+    <span>HydroChem · Professional Pool Water Analysis</span>
+    <span>Prepared for ${clientName} · ${reportDate}</span>
+  </div>
+
+  <!-- Print button (hidden when printing) -->
+  <div class="no-print" style="text-align:center;margin-top:24px;">
+    <button onclick="window.print()" style="padding:12px 32px;background:#1a5f8a;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">🖨 Print / Save as PDF</button>
+    <p style="margin-top:10px;font-size:12px;color:#7a9aaa;">To save as PDF: choose "Save as PDF" from your printer options</p>
+  </div>
+
+</div>
+</body>
+</html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+}
+
+
+function checkPassword() {
+  const input = document.getElementById('pw-input').value;
+  const error = document.getElementById('pw-error');
+  if (input === '12345') {
+    sessionStorage.setItem('hc-auth', '1');
+    document.getElementById('password-screen').style.display = 'none';
+    error.textContent = '';
+  } else {
+    error.textContent = 'Incorrect password. Please try again.';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+// Allow pressing Enter to submit
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPassword();
+});
+
+// Stay unlocked for the session
+if (sessionStorage.getItem('hc-auth') === '1') {
+  document.getElementById('password-screen').style.display = 'none';
+}
+
+
+let deferredPrompt = null;
+const banner    = document.getElementById('install-banner');
+const installBtn = document.getElementById('install-btn');
+const closeBtn  = document.getElementById('banner-close');
+
+// Android/Chrome: catch the beforeinstallprompt event
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  banner.classList.add('visible');
+});
+
+installBtn && installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  }
+  banner.classList.remove('visible');
+});
+
+closeBtn && closeBtn.addEventListener('click', () => {
+  banner.classList.remove('visible');
+});
+
+// iOS Safari: show instructions if not already installed
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandaloneMode = ('standalone' in navigator) && navigator.standalone;
+if (isIOS && !isInStandaloneMode) {
+  // Update banner text for iOS users
+  const bannerSpan = banner.querySelector('span');
+  if (bannerSpan) bannerSpan.textContent = '📲 Tap Share → Add to Home Screen to install HydroChem';
+  if (installBtn) installBtn.style.display = 'none';
+  banner.classList.add('visible');
+}
+
+updateVol();
+document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>
